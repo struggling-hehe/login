@@ -1,5 +1,6 @@
 package com.clear.loginjwt.config;
 
+import com.clear.loginjwt.config.filter.ExtendAuthenticationFilter;
 import com.clear.loginjwt.config.properties.SecurityProperties;
 import com.clear.loginjwt.constant.AuthConstants;
 import com.clear.loginjwt.handler.CustomerAuthenticationSuccessHandler;
@@ -13,6 +14,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.util.List;
 import java.util.Map;
@@ -66,29 +68,37 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter{
      * */
     private final LoginFailureHandler loginFailureHandler;
 
+    /**
+     * 扩展认证拦截器
+     */
+    private final ExtendAuthenticationFilter extendAuthenticationFilter;
+
+
     public WebSecurityConfig(SecurityProperties securityProperties, CustomerAuthenticationSuccessHandler customerAuthenticationSuccessHandler,
-                             LoginFailureHandler loginFailureHandler) {
+                             LoginFailureHandler loginFailureHandler, ExtendAuthenticationFilter extendAuthenticationFilter) {
         this.securityProperties = securityProperties;
         this.customerAuthenticationSuccessHandler = customerAuthenticationSuccessHandler;
         this.loginFailureHandler = loginFailureHandler;
+        this.extendAuthenticationFilter = extendAuthenticationFilter;
     }
 
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
 
-        // 配置token验证过滤器  自定义 jwt 拦截器的过滤器
-//        http.addFilterBefore(extendAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        // 指定新的过滤器  配置token验证过滤器  自定义 jwt 拦截器的过滤器
+        http.addFilterBefore(extendAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         // 开启授权认证  Spring Security 后，引入了CSRF，默认是开启。不得不说，CSRF和RESTful技术有冲突。CSRF默认支持的方法： GET|HEAD|TRACE|OPTIONS，不支持POST。
         http.csrf().disable()
                 // rest 无状态 无session
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
         // 读取验证配置 设置不受保护路径 设置受保护路径需要的角色权限
 //        this.readSecurityProperties(http);
-
         //spring security 放行注册中心健康检查
         http.authorizeRequests()
+                // 表单认证页面不需要权限
                 .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // 其他页面需要用户登录才可以访问
                 .anyRequest().authenticated()
                 // 登录配置
                 .and().formLogin().loginProcessingUrl(AuthConstants.LOGIN_URL)
@@ -110,7 +120,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter{
 
     /**
      * 读取验证配置
-     * 设置不受保护路径 设置受保护路径需要的角色权限
+     * 设置不受保护路径 设置受保护路径需要的角色权限 对不同的路由设置不同的处理方式
      * @param http 请求配置对象
      * @throws Exception 获取请求异常
      */

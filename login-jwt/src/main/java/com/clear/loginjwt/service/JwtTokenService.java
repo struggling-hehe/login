@@ -3,10 +3,15 @@ package com.clear.loginjwt.service;
 import com.alibaba.fastjson.JSON;
 import com.clear.loginjwt.config.properties.JwtProperties;
 import com.clear.loginjwt.constant.AuthConstants;
+import com.clear.loginjwt.constant.ExceptionMsgConstants;
+import com.clear.loginjwt.exception.CustomerAuthenticationException;
+import com.clear.loginjwt.exception.InvalidTokenException;
+import com.clear.loginjwt.exception.TokenExpireException;
 import com.clear.loginjwt.pojo.core.CustomerTokenSubject;
 import com.clear.loginjwt.pojo.dto.JwtDTO;
 import com.clear.loginjwt.service.interfaces.TokenCacheServiceImpl;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -40,6 +45,63 @@ public class JwtTokenService {
         this.tokenCacheService = tokenCacheService;
     }
 
+    /**
+     * 从令牌中获取用户名
+     *
+     * @param token 令牌
+     * @return java.lang.String 用户名
+     * @author qipp
+     */
+    public String getSubjectFromToken(String token) {
+        // 获取subject
+        String subject = isTokenExpired(token);
+        CustomerTokenSubject customerTokenSubject = JSON.parseObject(subject, CustomerTokenSubject.class);
+        // 如果不是普通令牌抛出异常
+        if (!CustomerTokenSubject.TokenType.ACCESS_TOKEN.getType().equals(customerTokenSubject.getTokenType())) {
+            // 刷新TOKEN不可当作TOKEN使用
+            throw new CustomerAuthenticationException("刷新TOKEN不可当作TOKEN使用！");
+        }
+        return customerTokenSubject.getUsername();
+    }
+
+    /**
+     * 判断令牌是否过期未过期返回subject
+     *
+     * @param token 令牌
+     * @return java.lang.String subject
+     * @author qipp
+     */
+    private String isTokenExpired(String token) {
+        // 去除Bearer
+        token = token.replace(AuthConstants.AUTH_REQ_TOKEN_TYPE, "");
+        // 从令牌中获取数据声明
+        Claims claims = getClaimsFromToken(token);
+        // 是否登出token
+        if (tokenCacheService.isLogoutToken(token)) {
+            throw new InvalidTokenException("无效的令牌！" + token);
+        }
+        // 获取subject
+        return claims.getSubject();
+    }
+
+    /**
+     * 从令牌中获取数据声明
+     *
+     * @param token 令牌
+     * @return io.jsonwebtoken.Claims 令牌数据声明
+     * @author qipp
+     */
+    private Claims getClaimsFromToken(String token) {
+        Claims claims;
+        try {
+            claims = Jwts.parser().setSigningKey(jwtProperties.getSecret()).parseClaimsJws(token).getBody();
+        } catch (ExpiredJwtException e) {
+            throw new TokenExpireException(ExceptionMsgConstants.EXPIRE_TOKEN_ERROR_MSG, e);
+        } catch (Exception e) {
+            throw new InvalidTokenException(ExceptionMsgConstants.INVALID_TOKEN_ERROR_MSG, e);
+        }
+        return claims;
+    }
 
     /**
      * 生成令牌

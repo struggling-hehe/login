@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 /**
  * @author jiexipeng
  */
+
 @SpringBootApplication(exclude =  {DataSourceAutoConfiguration.class})
 public class LoginJwtApplication {
 

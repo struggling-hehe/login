@@ -15,7 +15,6 @@ public class CustomerTokenSubject {
      */
     private String username;
 
-
     /**
      * 令牌类型
      */

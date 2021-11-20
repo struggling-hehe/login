@@ -19,6 +19,11 @@ public interface AuthConstants {
     String AUTH_TYPE = "authType";
 
     /**
+     * 请求令牌类型{@value}
+     */
+     String AUTH_REQ_TOKEN_TYPE = "Bearer ";
+
+    /**
      * 令牌类型{@value}
      */
     String AUTH_TOKEN_TYPE = "bearer";
