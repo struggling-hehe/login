@@ -19,6 +19,11 @@ public interface AuthConstants {
     String AUTH_TYPE = "authType";
 
     /**
+     * 令牌类型{@value}
+     */
+    String AUTH_TOKEN_TYPE = "bearer";
+
+    /**
      * 认证参数用户名/账号{@value}
      */
     String AUTH_USERNAME = "username";
@@ -32,4 +37,9 @@ public interface AuthConstants {
      * 认证参数刷新token {@value}
      */
     String AUTH_REFRESH_TOKEN = "refreshToken";
+
+    /**
+     * 响应ContentType
+     */
+    String CONTENT_TYPE = "application/json;charset=UTF-8";
 }

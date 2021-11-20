@@ -1,6 +1,9 @@
 package com.clear.loginjwt.config;
 
+import com.clear.loginjwt.config.properties.SecurityProperties;
 import com.clear.loginjwt.constant.AuthConstants;
+import com.clear.loginjwt.handler.CustomerAuthenticationSuccessHandler;
+import com.clear.loginjwt.handler.LoginFailureHandler;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -10,8 +13,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author jiexipeng@kongfz.com
@@ -22,7 +26,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties()
+@EnableConfigurationProperties(SecurityProperties.class)
 @EnableGlobalMethodSecurity(prePostEnabled = true, securedEnabled = true, jsr250Enabled = true)
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter{
 
@@ -46,12 +50,28 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter{
      */
     private static final String AUTH = "auth";
 
+
     /**
-     * 配置接口的认证授权
-     *
-     * @author qipp
-     * @param http {@link HttpSecurity}
+     * security 验证配置
      */
+    private final SecurityProperties securityProperties;
+
+    /**
+     * 登录成功
+     * */
+    private final CustomerAuthenticationSuccessHandler customerAuthenticationSuccessHandler;
+
+    /**
+     * 登录失败
+     * */
+    private final LoginFailureHandler loginFailureHandler;
+
+    public WebSecurityConfig(SecurityProperties securityProperties, CustomerAuthenticationSuccessHandler customerAuthenticationSuccessHandler,
+                             LoginFailureHandler loginFailureHandler) {
+        this.securityProperties = securityProperties;
+        this.customerAuthenticationSuccessHandler = customerAuthenticationSuccessHandler;
+        this.loginFailureHandler = loginFailureHandler;
+    }
 
 
     @Override
@@ -71,12 +91,11 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter{
                 .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated()
                 // 登录配置
-                .and().formLogin().loginProcessingUrl(AuthConstants.LOGIN_URL);
-//                .failureForwardUrl();
+                .and().formLogin().loginProcessingUrl(AuthConstants.LOGIN_URL)
                 // 登录成功后的处理
-//                .successHandler(authenticationSuccessHandler)
+                .successHandler(customerAuthenticationSuccessHandler)
                 // 登录失败后的处理
-//                .failureHandler(loginFailureHandler);
+                .failureHandler(loginFailureHandler);
 
         // 登录过期/未登录 、权限不足 处理
 //        http.exceptionHandling().authenticationEntryPoint(loginExpireHandler).accessDeniedHandler(customAccessDeniedHandler);
@@ -87,6 +106,38 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter{
         // 覆盖DaoAuthenticationProvider#additionalAuthenticationChecks() 实现（扩展登录不需要验证密码）
 //        auth.authenticationProvider(new ExtendAuthDaoAuthenticationProvider(userDetailsService));
 //        auth.userDetailsService(userDetailsService).passwordEncoder(new BCryptPasswordEncoder());
+    }
+
+    /**
+     * 读取验证配置
+     * 设置不受保护路径 设置受保护路径需要的角色权限
+     * @param http 请求配置对象
+     * @throws Exception 获取请求异常
+     */
+    private void readSecurityProperties(HttpSecurity http) throws Exception {
+        // 设置不受保护路径 设置受保护路径需要的角色权限
+        Map<String, List<String>> antMatchers = securityProperties.getAntMatchers();
+        for (Map.Entry<String, List<String>> entry : antMatchers.entrySet()) {
+            String key = entry.getKey();
+            List<String> urls = entry.getValue();
+            if (key.equals(UN_AUTHENTICATED)) {
+                for (String url : urls) {
+                    http.authorizeRequests().antMatchers(url).permitAll();
+                }
+            }else{
+                String type = key.split(TO)[0];
+                String str = key.split(TO)[1];
+                if (type.equals(ROLE)) {
+                    for (String url : urls) {
+                        http.authorizeRequests().antMatchers(url).hasRole(str);
+                    }
+                }else if (type.equals(AUTH)) {
+                    for (String url : urls) {
+                        http.authorizeRequests().antMatchers(url).hasAuthority(str);
+                    }
+                }
+            }
+        }
     }
 
 }

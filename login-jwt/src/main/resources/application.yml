@@ -1,9 +1,9 @@
 server:
-  port: 8880
+  port: 8280
 
 spring:
   application:
-    name: demo
+    name: login
   main:
     allow-bean-definition-overriding: true
   datasource:
